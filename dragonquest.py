@@ -3,157 +3,219 @@ import random
 class Character:
     def __init__(self, name):
         self.name = name
-        self.inventory = {}
-        self.gold = 100
-        
-        #physical power
         self.strength = 16
-        
-        #knowledge of arcane arts
         self.intellect = 16
-        
-        #ability to run away
-        self.agility = 16
-        
-        #natural damage tolerance
         self.resilience = 16
         
-        #maximum health points
+        #ability to run away (TODO: implement Escape action?)
+        #self.agility = 16
+
         self.max_hp = 16
         self.hp = self.max_hp
-        
-        #maximum magic points
         self.max_mp = 16
         self.mp = self.max_mp
-        
-        #attack power = strength+weapon
-        #spell power = intellect+spell
-        #defense power = (shield+armor)+resilience 
-        #protection = intellect+resilience 
         self.equipment = {
-        	}
-        self.spellbook = {}
+            "weapon": False,
+            "armor": False,
+            "shield": False
+        }
         self.status = []
-        pass
+        self.inventory = {}
+        self.spellbook = {}
 
-    def speak(self, target):
-        pass
+    def alive(self):
+        if "deceased" not in self.status:
+            return True
 
-    def equip(self, slot, gear):
-        self.equipment[slot] = gear
-        pass
-            
-    pass
+        else:
+            print("%s is a corpse.\n" % self.name)
+            return False
+
+    def health(self, change = 0):
+        self.hp += change
+        if change == 0:
+            return self.hp
+
+        elif self.alive() and (change < 0):
+            print("%s takes %d damage.\n" % (self.name, abs(change)))
+            if self.hp < 1:
+                self.hp = 0
+                print("%s has died.\n" % self.name)
+                self.status = ["deceased"]
+
+            return True
+
+        elif self.alive() and (change > 0):
+            print("%s restores %d hp.\n" % (self.name, change))
+            if self.hp > self.max_hp:
+                self.hp = self.max_hp
+                print("%s's health is fully restored!\n" % self.name)
+
+            return True
+
+        else:
+            return False
+
+    def magic(self, change = 0):
+        if change == 0:
+            return self.mp
+
+        elif self.alive() and (change < 0):
+            if abs(change) > self.mp:
+                print("%s doesn't have enough magic!\n" % self.name)
+                return False
+
+            else:
+                self.mp += change
+                print("%s expends %d magic.\n" % (self.name, abs(change)))
+                if self.mp < 1:
+                    self.mp = 0
+                    print("%s has depleted their magic.\n" % self.name)
+
+                return True
+
+        elif self.alive() and (change > 0):
+            self.mp += change
+            print("%s restores %d  mp.\n" % (self.name, change))
+            if self.mp > self.max_mp:
+                self.mp = self.max_mp
+                print("%s's magic has been fully restored!\n" % self.name)
+
+            return True
+
+        else:
+            return False
+
+    def drink(self, item):
+        if item in self.inventory.keys():
+            return self.inventory[item].drink(self)
+
+        else:
+            print("%s can't drink a %s.\n" % (self.name, item))
+            return False
+
+    def equip(self, item):
+        if item in self.inventory.keys():
+            return self.inventory[item].equip(self)
+
+        else:
+            print("%s can't equip a %s.\n" % (self.name, item))
+            return False
+
+    def attack(self, target):
+        if self.equipment["weapon"]:
+            return self.equipment["weapon"].attack(self, target)
+
+        else:
+            print("%s is unarmed.\n" % self.name)
+            return False
+
+    def cast(self, spell, target):
+        if spell in self.spellbook.keys():
+            print("%s casts %s.\n" % (self.name, spell))
+            return self.spellbook[spell].cast(target, self)
+
+        else:
+            print("%s can't cast %s.\n" % (self.name, spell))
+            return False
 
 class NPCharacter(Character):
     def __init__(self, name):
         super().__init__(name)
         pass
-    pass
+
+    def health(self, change = 0):
+        res = super().health(change)
+        if self.alive() and self.hp < int(self.max_hp/3):
+            self.drink("red potion")
+
+        return res
+
+    def magic(self, change = 0):
+        res = super().magic(change)
+        if self.alive() and self.mp < int(self.max_mp/3):
+            self.drink("blue potion")
+
+        return res
 
 class PlayerCharacter(Character):
     def __init__(self, name):
         super().__init__(name)
-        
-        self.level = 1
-        self.exp_points = 0
-        self.quest_flags = {
-        	
-        	}
-        pass
-    pass
 
+        self.gold = 100
+        self.level = 1
+        self.xp = 0
+        self.quest_flags = {}
+        
 class Effect():
     def __init__(self, name, power):
         self.name = name
         self.power = power
 
-    pass
-
-class Spell(Effect):
-    def __init__(self, name, cost, power, status='none'):
-        super().__init__(name, power)
-        self.cost = cost
-        self.status = status
-
-    def pay(self, caster):
-        if caster.mp > self.cost:
-            caster.mp = caster.mp - self.cost
-            return True
-        else:
-            return False
-
-    def cast(self, target, caster):
-        if self.pay(caster):
-            # calculate damage
-            damage = (random.randint(caster.intellect/4, caster.intellect))+(random.randint(self.power/2, self.power))
-            print("%s deals %d" % (self.name, damage))
-            
-            if self.status in target.status:
-                resist = (random.randint(target.intellect/2, target.intellect))+(random.randint(target.resilience/2, target.resilience))
-                print("%s resists %d damage" % (target.name, resist))
-                damage = damage - resist
-                if damage < 0:
-                    damage = 0
-                    print("%s is ineffective" % self.name)
-                target.hp = target.hp - damage
-                if target.hp < 0:
-                    target.hp = 0
-                print("%s hp is %d" % (target.name, target.hp))
-                if target.hp < 1:
-                    print("%s died.\n" % target.name)
-            else:
-                resist = (random.randint(0, target.intellect/2))+(random.randint(0, target.resilience/2))
-                print("%s resists %d damage" % (target.name, resist))
-                
-                damage = damage - resist
-                if damage < 0:
-                    damage = 0
-                    print("%s is ineffective" % self.name)
-                target.hp = target.hp - damage
-                if target.hp < 0:
-                    target.hp =0
-                print("%s hp is %d" % (target.name, target.hp))
-                if target.hp < 1:  
-                    print("%s died.\n" % target.name)
-                    
-                if not self.status == 'none' and damage > 0:
-                    target.status.append(self.status)
-                
-            return True
-        else:
-            return False
-
 class Potion(Effect):
-    def __init__(self, name, attribute, power, quantity=0):
+    def __init__(self, name, attribute, power, quantity = 0):
         super().__init__(name, power)
         self.attribute = attribute
         self.quantity = quantity
 
     def pay(self, caster):
         if caster.inventory[self.name].quantity > 0:
-            caster.inventory[self.name].quantity = caster.inventory[self.name].quantity - 1
+            caster.inventory[self.name].quantity -= 1
             return True
+
         else:
+            print("%s has no %s left.\n" % (caster.name, self.name))
             return False
 
     def drink(self, caster):
-        if self.pay(caster):
+        if caster.alive() and self.pay(caster):
+            print("%s drinks a %s.\n" % (caster.name, self.name))
             if self.attribute == 'hp':
-                caster.hp = caster.hp + self.power
-                print("%s restores %d hp" % (self.name, self.power))
-                if caster.hp > caster.max_hp:
-                    caster.hp = caster.max_hp
-                print("%s hp is now %d" % (caster.name, caster.hp))
-            elif self.attribute == 'mp':
-                caster.mp = caster.mp + self.power
-                print("%s restores %d mp" % (self.name, self.power))
-                if caster.mp > caster.max_mp:
-                    caster.mp = caster.max_mp
-                print("%s mp is now %d" % (caster.name, caster.mp))
+                caster.health(self.power)
 
+            elif self.attribute == 'mp':
+                caster.magic(self.power)
 
             return True
+
+        else:
+            return False
+
+class Spell(Effect):
+    def __init__(self, name, cost, power, status = 'none'):
+        super().__init__(name, power)
+        self.cost = cost
+        self.status = status
+
+    def pay(self, caster):
+        if caster.magic() > self.cost:
+            caster.magic(-self.cost)
+            return True
+
+        else:
+            return False
+
+    def cast(self, target, caster):
+        if caster.alive() and target.alive() and self.pay(caster):
+            damage = random.randint(int((caster.intellect + self.power)/2), caster.intellect + self.power)
+            print("%s deals %d damage.\n" % (self.name.capitalize(), damage))
+            if self.status in target.status:
+                resist = random.randint(int((target.intellect + target.resilience)/2), target.intellect + target.resilience)
+
+            else:
+                resist = random.randint(0, int((target.intellect + target.resilience)/2))
+                if target.alive() and ((damage - resist) > 0) and not self.status == 'none' and self.status not in target.status:
+                    target.status.append(self.status)
+                    
+            print("%s resists %d damage.\n" % (target.name, resist))
+            damage -= resist
+            if damage <= 0:
+                damage = 0
+                print("%s is ineffective!\n" % self.name.capitalize())
+
+            target.health(-damage)
+            return True
+
         else:
             return False
 
@@ -162,79 +224,94 @@ class Equipment(Effect):
         super().__init__(name, power)
         self.slot = slot
 
-    def pay(self, caster):
-        pass
-    
     def equip(self, caster):
-        #TODO: ensure item is in inventory to equip
-        if caster.equipment[self.slot]:
-            caster.inventory.append(caster.equipment[self.slot])
-        caster.equipment[self.slot] = self.name
+        if caster.alive() and self.name in caster.inventory.keys():
+            if caster.equipment[self.slot]:
+                caster.inventory.append(caster.equipment[self.slot])
+
+            caster.equipment[self.slot] = self
+            caster.inventory.pop(self.name)
+            print("%s equips the %s.\n" % (caster.name, self.name))
+            return True
+
+        else:
+            return False
+
+    def defend(self):
+        return self.power
 
 class Weapon(Equipment):
-    def __init__(self, name, power, slot):
-        super().__init__(name, power, slot)
-        
+    def __init__(self, name, power):
+        super().__init__(name, power, "weapon")
+
     def attack(self, caster, target):
-        pass
+        if caster.alive() and target.alive():
+            damage = random.randint(int((caster.strength + self.power)/3), caster.strength + self.power)
+            print("%s attacks %s with %s.\n" % (caster.name, target.name, self.name))
+            if random.randint(0, 7) == 3:
+                print("%s misses!\n" % caster.name)
+                damage = 0
 
-#Type: (+attack, gold)
+            else:
+                print("%s deals %d damage.\n" % (self.name, damage))
+                target_defense = 0
+                if target.equipment["shield"]:
+                    target_defense += target.equipment["shield"].defend()
+
+                if target.equipment["armor"]:
+                    target_defense += target.equipment["armor"].defend()
+
+                resist = random.randint(int((target.resilience + target_defense)/3), target.resilience + target_defense)
+                print("%s has a defense rating of %d.\n" % (target.name, target_defense))
+                print("%s resists %d damage.\n" % (target.name, resist))
+                damage -= resist
+                if damage <= 0:
+                    damage = 0
+                    print("%s blocks the attack!\n" % target.name)
+
+            target.health(-damage)
+            return True
+
+        else:
+            return False
+
 weapons = {
-   "Bamboo Pole": (2, 10),
-   "Club": (4, 60),
-   "Copper Sword": (10, 180),
-   "Hand Axe": (15, 560),
-   "Broad Sword": (20, 1500),
-   "Flame Sword": (28, 9800),
-   "Erdrick's Sword": (40, 0) 
+    "Bamboo Pole": 2,
+    "Club": 4,
+    "Copper Sword": 10,
+    "Hand Axe": 15,
+    "Broad Sword": 20,
+    "Flame Sword": 28,
+    "Erdrick's Sword": 40
 }
 
-
-#Type: (+defense, gold)
 armor = {
-   "Clothes": (2, 50),
-   "Leather Armor": (4, 40),
-   "Chain Mail": (12, 300),
-   "Half Plate": (16, 1000),
-   "Full Plate": (24, 3000),
-   "Magic Armor": (24, 7700),
-   "Erdrick's Armor": (28, 0)
+    "Clothes": 2,
+    "Leather Armor": 4,
+    "Chain Mail": 12,
+    "Half Plate": 16,
+    "Full Plate": 24,
+    "Magic Armor": 24,
+    "Erdrick's Armor": 28
 }
 
-#Type: (+defense, gold)
 shields = {
-   "Leather Shield": (4, 90),
-   "Iron Shield": (10, 800),
-   "Silver Shield": (24, 14800)
+    "Leather Shield": 4,
+    "Iron Shield": 10,
+    "Silver Shield": 24
 }
 
+spells = {
+    "zap": (1, 2, 'none'),
+    "fireball": (2, 4, 'burning'),
+    "blizzard": (4, 8, 'freezing'),
+    "lightning": (8, 12, 'shocked')
+}
 
-char = Character("Ted")
-npc = NPCharacter("Bill")
-player = PlayerCharacter("Murph")
+potions = {
+    "red potion": (8, 'hp'),
+    "blue potion": (8, 'mp')
+}
 
-player.spellbook["zap"] = Spell("zap", 1, 2)
-player.spellbook["fireball"] = Spell("fireball", 2, 4, "burning")
-player.spellbook["blizzard"] = Spell("blizzard", 4, 8, "freezing")
-player.spellbook["lightning"] = Spell("lightning", 8, 12, "shocked")
-
-player.inventory["red potion"] = Potion("red potion", 'hp', 8, 3)
-npc.inventory["red potion"] = Potion("red potion", 'hp', 8, 3)
-player.inventory["blue potion"] = Potion("blue potion", 'mp', 8, 3)
-
-
-print(char.name)
-print(npc.name)
-print(player.name, player.strength, player.equipment)
-
-player.spellbook["zap"].cast(npc, player)
-player.spellbook["fireball"].cast(npc, player)
-player.spellbook["blizzard"].cast(npc, player)
-
-player.inventory["blue potion"].drink(player)
-npc.inventory["red potion"].drink(npc)
-player.spellbook["blizzard"].cast(npc, player)
-player.spellbook["lightning"].cast(npc, player)
-
-print(npc.name,npc.hp, npc.mp, npc.status, npc.inventory["red potion"].name, npc.inventory["red potion"].quantity)
-print(player.name, player.hp, player.mp, player.status, player.inventory["blue potion"].name, player.inventory["blue potion"].quantity)
+if __name__ == "__main__":
+    pass
